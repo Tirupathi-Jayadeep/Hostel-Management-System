@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>Student Dashboard</h2>
+
+    <div class="row mt-4">
+
+        <!-- Student Info -->
+        <div class="col-md-4">
+            <div class="card p-3 shadow">
+                <h5>Profile</h5>
+                <p><b>Name:</b> {{ request.user.first_name }}</p>
+                <p><b>Reg No:</b> {{ student.enrollment_number }}</p>
+            </div>
+        </div>
+
+        <!-- Room Info -->
+        <div class="col-md-4">
+            <div class="card p-3 shadow">
+                <h5>Room Details</h5>
+                {% if room %}
+                    <p><b>Room No:</b> {{ room.room.room_number }}</p>
+                    <p><b>Floor:</b> {{ room.room.floor }}</p>
+                {% else %}
+                    <p>No room assigned</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Fee -->
+        <div class="col-md-4">
+            <div class="card p-3 shadow">
+                <h5>Fee Status</h5>
+                {% if fee %}
+                    <p>{{ fee.status }}</p>
+                {% else %}
+                    <p>No fee record</p>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Complaint Section -->
+    <div class="mt-5">
+        <h4>My Complaints</h4>
+
+        <a href="{% url 'add_complaint' %}" class="btn btn-warning mb-3">
+            + Raise Complaint
+        </a>
+
+        <table class="table table-bordered">
+            <tr>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+
+            {% for complaint in complaints %}
+            <tr>
+                <td>{{ complaint.title }}</td>
+                <td>{{ complaint.status }}</td>
+                <td>
+                    <a href="#" class="btn btn-sm btn-info">Edit</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No complaints</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}

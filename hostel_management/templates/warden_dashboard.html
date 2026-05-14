@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>Warden Dashboard</h2>
+
+<h3>Pending Complaints</h3>
+
+<ul>
+{% for complaint in complaints %}
+    <li>
+        {{ complaint.title }} - {{ complaint.description }}
+    </li>
+{% endfor %}
+</ul>
+
+{% endblock %}
