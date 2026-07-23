@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Dashboard - Hostel Hub{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-4 pb-2">
+    <div class="col-md-7">
+        <div class="d-flex align-items-center">
+            <div class="stat-icon-wrapper me-3 bg-primary bg-opacity-10 text-primary mb-0" style="width: 54px; height: 54px; font-size: 1.6rem;">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-1">Welcome, {{ request.user.first_name|default:request.user.username }}! 👋</h3>
+                <p class="text-slate-500 mb-0">Here's what's happening with your hostel accommodation today.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5 text-md-end mt-3 mt-md-0">
+        <a href="{% url 'add_complaint' %}" class="btn btn-gradient me-2">
+            <i class="fas fa-plus-circle me-1"></i>New Complaint
+        </a>
+        <a href="{% url 'apply_leave' %}" class="btn btn-outline-primary">
+            <i class="fas fa-plane-departure me-1"></i>Apply Leave
+        </a>
+    </div>
+</div>
+
+<!-- Stat Cards Grid -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-number">{{ pending_complaints }}</div>
+            <div class="stat-label">Pending Complaints</div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: rgba(6, 182, 212, 0.1); color: var(--secondary);">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-number">{{ pending_leave }}</div>
+            <div class="stat-label">Pending Leave Applications</div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <div class="stat-number">₹{{ pending_fees }}</div>
+            <div class="stat-label">Pending Fee Amount</div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="stat-number">{{ total_fees }}</div>
+            <div class="stat-label">Total Fee Statements</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Profile Card -->
+    <div class="col-lg-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="fas fa-id-card text-primary me-2"></i>My Profile Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    {% if request.user.profile_picture %}
+                        <img src="{{ request.user.profile_picture.url }}" class="rounded-circle shadow-sm" width="90" height="90" style="object-fit: cover;">
+                    {% else %}
+                        <div class="mx-auto rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold fs-3" style="width: 80px; height: 80px;">
+                            {{ request.user.username|slice:":2"|upper }}
+                        </div>
+                    {% endif %}
+                    <h5 class="fw-bold mt-2 mb-0">{{ request.user.get_full_name|default:request.user.username }}</h5>
+                    <span class="badge bg-light text-primary border mt-1">Student</span>
+                </div>
+
+                <ul class="list-group list-group-flush border-top">
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2 border-bottom">
+                        <span class="text-slate-500"><i class="fas fa-hashtag me-2 text-muted"></i>Enrollment</span>
+                        <span class="fw-semibold text-dark">{{ student.enrollment_number }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2 border-bottom">
+                        <span class="text-slate-500"><i class="fas fa-bed me-2 text-muted"></i>Assigned Room</span>
+                        <span class="fw-semibold text-dark">
+                            {% if room %}Room {{ room.room.room_number }} (Fl {{ room.room.floor }}){% else %}<span class="text-warning">Unassigned</span>{% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2 border-bottom">
+                        <span class="text-slate-500"><i class="fas fa-phone me-2 text-muted"></i>Phone</span>
+                        <span class="fw-semibold text-dark">{{ request.user.phone_number|default:'N/A' }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2">
+                        <span class="text-slate-500"><i class="fas fa-envelope me-2 text-muted"></i>Email</span>
+                        <span class="fw-semibold text-dark">{{ request.user.email|default:'N/A' }}</span>
+                    </li>
+                </ul>
+                
+                <div class="d-grid mt-3">
+                    <a href="{% url 'profile' %}" class="btn btn-outline-primary btn-sm">Edit Full Profile</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complaints & Activity -->
+    <div class="col-lg-8">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="fas fa-exclamation-circle text-primary me-2"></i>Recent Complaints
+                </h5>
+                <a href="{% url 'student_complaints' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold">View All →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if complaints %}
+                    <div class="list-group list-group-flush">
+                        {% for complaint in complaints %}
+                            <div class="list-group-item p-3 border-bottom d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <h6 class="fw-bold mb-0 me-2">{{ complaint.title }}</h6>
+                                        <span class="badge bg-light text-dark border">{{ complaint.get_category_display }}</span>
+                                    </div>
+                                    <small class="text-slate-500"><i class="far fa-clock me-1"></i>{{ complaint.created_at|date:'d M Y, H:i' }}</small>
+                                </div>
+                                <div class="text-end">
+                                    {% if complaint.status == 'pending' %}
+                                        <span class="badge badge-pending">Pending</span>
+                                    {% elif complaint.status == 'in_progress' %}
+                                        <span class="badge badge-info">In Progress</span>
+                                    {% elif complaint.status == 'resolved' %}
+                                        <span class="badge badge-resolved">Resolved</span>
+                                    {% elif complaint.status == 'rejected' %}
+                                        <span class="badge badge-rejected">Rejected</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ complaint.get_status_display }}</span>
+                                    {% endif %}
+                                    <a href="{% url 'complaint_detail' complaint.id %}" class="btn btn-sm btn-light ms-2"><i class="fas fa-eye"></i></a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <p class="text-slate-500 mb-0">No active complaints found. Everything looks good!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Log Table -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="fas fa-clipboard-user text-primary me-2"></i>Attendance Record (Recent 7 Days)
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                {% if attendance_logs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Check-In</th>
+                                    <th>Check-Out</th>
+                                    <th>Notes</th>
+                                    <th>Recorded By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in attendance_logs %}
+                                <tr>
+                                    <td class="fw-semibold">{{ attendance.date|date:"d M Y" }}</td>
+                                    <td>
+                                        {% if attendance.status == 'present' %}
+                                            <span class="badge badge-approved">Present</span>
+                                        {% elif attendance.status == 'absent' %}
+                                            <span class="badge badge-rejected">Absent</span>
+                                        {% elif attendance.status == 'leave' %}
+                                            <span class="badge badge-info">Leave</span>
+                                        {% elif attendance.status == 'late' %}
+                                            <span class="badge badge-pending">Late</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ attendance.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ attendance.checkin_time|time:"H:i"|default:"-" }}</td>
+                                    <td>{{ attendance.checkout_time|time:"H:i"|default:"-" }}</td>
+                                    <td class="text-slate-500">{{ attendance.notes|default:"-" }}</td>
+                                    <td class="text-slate-500">{{ attendance.recorded_by.user.get_full_name|default:"Warden" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center">
+                        <p class="text-slate-500 mb-0"><i class="fas fa-info-circle me-1"></i>No attendance logs recorded yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

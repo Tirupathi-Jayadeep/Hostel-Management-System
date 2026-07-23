@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Fee Details - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-0">{{ fee.get_fee_type_display }}</h5>
+                        </div>
+                        <div class="col-auto">
+                            {% if fee.status == 'paid' %}
+                                <span class="badge bg-success">Paid</span>
+                            {% elif fee.status == 'pending' %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% elif fee.status == 'overdue' %}
+                                <span class="badge bg-danger">Overdue</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Fee Type</label>
+                            <p class="h6">{{ fee.get_fee_type_display }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Academic Year</label>
+                            <p class="h6">{{ fee.academic_year|default:"N/A" }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Total Amount</label>
+                            <p class="h5 text-primary">₹{{ fee.amount }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Amount Paid</label>
+                            <p class="h5 text-success">₹{{ fee.amount_paid }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Due Date</label>
+                            <p class="h6">{{ fee.due_date|date:"d M Y" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Payment Date</label>
+                            <p class="h6">{{ fee.payment_date|date:"d M Y"|default:"Not paid yet" }}</p>
+                        </div>
+                    </div>
+
+                    {% if fee.receipt_number %}
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Receipt Number</label>
+                            <p class="h6">{{ fee.receipt_number }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Payment Method</label>
+                            <p class="h6">{{ fee.payment_method|default:"N/A" }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if fee.description %}
+                    <div class="mb-4">
+                        <label class="form-label text-muted">Description</label>
+                        <div class="bg-light p-3 rounded">
+                            {{ fee.description }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if fee.amount != fee.amount_paid %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Remaining Balance: ₹{{ fee.amount|add:"-"|add:fee.amount_paid }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-light">
+                    <a href="{% url 'student_fees' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Fees
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

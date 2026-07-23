@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}My Fees - Hostel Hub{% endblock %}
+
+{% block content %}
+<div class="mb-4 pb-2">
+    <h3 class="fw-bold mb-1"><i class="fas fa-wallet text-primary me-2"></i>My Fee Statements</h3>
+    <p class="text-slate-500 mb-0">Overview of your hostel, mess, and maintenance fee transactions.</p>
+</div>
+
+<!-- Stat Summary Grid -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="stat-number">₹{{ total_amount }}</div>
+            <div class="stat-label">Total Assigned Fees</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-number">₹{{ paid_amount }}</div>
+            <div class="stat-label">Total Paid Amount</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="stat-number">₹{{ pending_amount }}</div>
+            <div class="stat-label">Pending Dues</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon-wrapper" style="background: rgba(6, 182, 212, 0.1); color: var(--secondary);">
+                <i class="fas fa-list-ol"></i>
+            </div>
+            <div class="stat-number">{{ fees.count }}</div>
+            <div class="stat-label">Total Fee Statements</div>
+        </div>
+    </div>
+</div>
+
+{% if fees %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="fw-bold mb-0 text-dark">
+                <i class="fas fa-receipt text-primary me-2"></i>Fee Statements & Payment Details
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fee Category</th>
+                            <th>Total Amount</th>
+                            <th>Amount Paid</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fee in fees %}
+                        <tr>
+                            <td class="fw-semibold text-dark">
+                                <i class="fas fa-tag text-muted me-2"></i>{{ fee.get_fee_type_display }}
+                                {% if fee.month %}<small class="text-slate-500 d-block">Period: {{ fee.month }}</small>{% endif %}
+                            </td>
+                            <td class="fw-bold text-dark">₹{{ fee.amount }}</td>
+                            <td class="text-success fw-semibold">₹{{ fee.amount_paid }}</td>
+                            <td class="text-slate-500">{{ fee.due_date|date:"d M Y" }}</td>
+                            <td>
+                                {% if fee.status == 'paid' %}
+                                    <span class="badge badge-approved">Paid</span>
+                                {% elif fee.status == 'pending' %}
+                                    <span class="badge badge-pending">Pending</span>
+                                {% elif fee.status == 'overdue' %}
+                                    <span class="badge badge-rejected">Overdue</span>
+                                {% elif fee.status == 'partial' %}
+                                    <span class="badge badge-info">Partially Paid</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ fee.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'fee_detail' fee.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>Statement
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="card border-0 shadow-sm p-5 text-center">
+        <i class="fas fa-receipt fa-3x text-slate-500 mb-3"></i>
+        <h5 class="fw-bold">No Fee Records Found</h5>
+        <p class="text-slate-500 mb-0">You do not have any pending or previous fee records assigned.</p>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}My Complaints - Hostel Hub{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 pb-2">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="fas fa-exclamation-circle text-primary me-2"></i>My Complaints</h3>
+        <p class="text-slate-500 mb-0">Track and manage your submitted hostel maintenance & service requests.</p>
+    </div>
+    <a href="{% url 'add_complaint' %}" class="btn btn-gradient">
+        <i class="fas fa-plus me-1"></i>Raise New Complaint
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-5">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5">
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for value, label in category_choices %}
+                        <option value="{{ value }}" {% if selected_category == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if complaints %}
+    <div class="row g-4">
+        {% for complaint in complaints %}
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                        <span class="badge bg-light text-primary border fw-semibold">{{ complaint.get_category_display }}</span>
+                        {% if complaint.status == 'pending' %}
+                            <span class="badge badge-pending">Pending</span>
+                        {% elif complaint.status == 'in_progress' %}
+                            <span class="badge badge-info">In Progress</span>
+                        {% elif complaint.status == 'resolved' %}
+                            <span class="badge badge-resolved">Resolved</span>
+                        {% elif complaint.status == 'rejected' %}
+                            <span class="badge badge-rejected">Rejected</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ complaint.get_status_display }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-2 text-dark">{{ complaint.title }}</h5>
+                        <p class="text-slate-600 small mb-3">{{ complaint.description|truncatewords:24 }}</p>
+                        <div class="text-slate-500 small">
+                            <i class="far fa-clock me-1"></i>Submitted: {{ complaint.created_at|date:"d M Y, H:i" }}
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white border-top py-2 d-flex justify-content-between align-items-center">
+                        <a href="{% url 'complaint_detail' complaint.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i>View Details
+                        </a>
+                        {% if complaint.is_editable %}
+                            <a href="{% url 'edit_complaint' complaint.id %}" class="btn btn-sm btn-light text-dark">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card border-0 shadow-sm p-5 text-center">
+        <i class="fas fa-inbox fa-3x text-slate-500 mb-3"></i>
+        <h5 class="fw-bold">No complaints found</h5>
+        <p class="text-slate-500 mb-3">You currently have no complaints matching your criteria.</p>
+        <div>
+            <a href="{% url 'add_complaint' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Submit a Complaint
+            </a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

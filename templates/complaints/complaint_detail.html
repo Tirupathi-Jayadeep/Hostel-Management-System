@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Complaint Details - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-0">{{ complaint.title }}</h5>
+                        </div>
+                        <div class="col-auto">
+                            {% if complaint.status == 'pending' %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% elif complaint.status == 'resolved' %}
+                                <span class="badge bg-success">Resolved</span>
+                            {% elif complaint.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-info">{{ complaint.get_status_display }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Category</label>
+                            <p class="h6">{{ complaint.category }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Priority</label>
+                            <p class="h6">
+                                {% if complaint.priority == 'high' %}
+                                    <span class="badge bg-danger">High</span>
+                                {% elif complaint.priority == 'medium' %}
+                                    <span class="badge bg-warning">Medium</span>
+                                {% else %}
+                                    <span class="badge bg-info">Low</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Submitted On</label>
+                            <p class="h6">{{ complaint.created_at|date:"d M Y H:i" }}</p>
+                        </div>
+                        {% if complaint.resolved_at %}
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Resolved On</label>
+                            <p class="h6">{{ complaint.resolved_at|date:"d M Y H:i" }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted">Description</label>
+                        <div class="bg-light p-3 rounded">
+                            {{ complaint.description }}
+                        </div>
+                    </div>
+
+                    {% if complaint.resolution_notes %}
+                    <div class="mb-4">
+                        <label class="form-label text-muted">Resolution Details</label>
+                        <div class="bg-light p-3 rounded border-start border-success border-4">
+                            {{ complaint.resolution_notes }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if complaint.attachment %}
+                    <div class="mb-4">
+                        <label class="form-label text-muted">Attachment</label>
+                        <a href="{{ complaint.attachment.url }}" class="btn btn-sm btn-outline-primary" download>
+                            <i class="fas fa-download me-1"></i>Download Attachment
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-light d-flex justify-content-between">
+                    <a href="{% url 'student_complaints' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Complaints
+                    </a>
+                    {% if complaint.is_editable %}
+                        <a href="{% url 'edit_complaint' complaint.id %}" class="btn btn-primary">
+                            <i class="fas fa-edit me-2"></i>Edit Complaint
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

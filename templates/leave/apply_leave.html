@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Apply for Leave - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-plus me-2"></i>Apply for Leave
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Submit a leave request for warden approval. Once approved, your leave will be granted.</p>
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label" for="id_leave_from">From</label>
+                            {{ form.leave_from }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="id_leave_to">To</label>
+                            {{ form.leave_to }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="id_reason">Reason</label>
+                            {{ form.reason }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="id_destination">Destination</label>
+                            {{ form.destination }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="id_contact_during_leave">Contact Number</label>
+                            {{ form.contact_during_leave }}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-paper-plane me-1"></i>Submit Request
+                            </button>
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

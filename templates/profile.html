@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="mb-4">
+                <i class="fas fa-user me-3"></i>My Profile
+            </h2>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-id-card me-2"></i>User Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Username</label>
+                            <p class="h6">{{ user.username }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Email</label>
+                            <p class="h6">{{ user.email }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">First Name</label>
+                            <p class="h6">{{ user.first_name|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Last Name</label>
+                            <p class="h6">{{ user.last_name|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Role</label>
+                            <p class="h6">
+                                {% if user.role == 'student' %}
+                                    <span class="badge bg-info">Student</span>
+                                {% elif user.role == 'warden' %}
+                                    <span class="badge bg-warning">Warden</span>
+                                {% elif user.role == 'admin' %}
+                                    <span class="badge bg-danger">Admin</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Account Status</label>
+                            <p class="h6">
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Member Since</label>
+                            <p class="h6">{{ user.created_at|date:"d M Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if student_profile %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-graduation-cap me-2"></i>Student Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Enrollment Number</label>
+                            <p class="h6">{{ student_profile.enrollment_number }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Phone Number</label>
+                            <p class="h6">{{ user.phone_number|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+
+                    {% if room_allocation %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Room Number</label>
+                            <p class="h6">{{ room_allocation.room.number }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Block/Wing</label>
+                            <p class="h6">{{ room_allocation.room.block }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        No room allocated yet
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if warden_profile %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-briefcase me-2"></i>Warden Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Department</label>
+                            <p class="h6">{{ warden_profile.department|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Phone Number</label>
+                            <p class="h6">{{ user.phone_number|default:"Not provided" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'edit_profile' %}" class="btn btn-primary btn-block mb-2 w-100">
+                        <i class="fas fa-edit me-2"></i>Edit Profile
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-block w-100">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
