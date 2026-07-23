@@ -42,7 +42,7 @@ A comprehensive Django-based web application for managing hostel operations effi
 ### Step 1: Clone the Repository
 ```bash
 git clone <repository-url>
-cd "Hostel Management System/hostel_management"
+cd "Hostel-Management-System"
 ```
 
 ### Step 2: Create Virtual Environment
