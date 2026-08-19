@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
     Complaint, Attendance, Fee, Visitor, LeaveApplication,
-    MaintenanceRequest, Announcement, Event, RoomRating
+    MaintenanceRequest, Announcement, Event, RoomRating, Notification,
+    Conversation, ChatMessage
 )
 
 
@@ -233,6 +234,26 @@ class AnnouncementAdmin(admin.ModelAdmin):
             obj.get_priority_display()
         )
     priority_badge.short_description = 'Priority'
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('recipient', 'title', 'notification_type', 'is_read', 'created_at')
+    list_filter = ('notification_type', 'is_read', 'created_at')
+    search_fields = ('title', 'message', 'recipient__username')
+
+
+@admin.register(Conversation)
+class ConversationAdmin(admin.ModelAdmin):
+    list_display = ('title', 'created_at', 'is_active')
+    filter_horizontal = ('participants',)
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ('conversation', 'sender', 'created_at', 'is_read')
+    list_filter = ('is_read', 'created_at')
+    search_fields = ('content', 'sender__username')
 
 
 @admin.register(Event)

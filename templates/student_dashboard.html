@@ -3,21 +3,53 @@
 {% block title %}Student Dashboard - Hostel Hub{% endblock %}
 
 {% block content %}
-<div class="row align-items-center mb-4 pb-2">
-    <div class="col-md-7">
-        <div class="d-flex align-items-center">
-            <div class="stat-icon-wrapper me-3 bg-primary bg-opacity-10 text-primary mb-0" style="width: 54px; height: 54px; font-size: 1.6rem;">
-                <i class="fas fa-user-graduate"></i>
+<div class="spatial-shell mb-4 text-white">
+    <div class="row align-items-center g-3 position-relative">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center">
+                <div class="stat-icon-wrapper me-3 mb-0" style="width: 60px; height: 60px; font-size: 1.8rem; background: rgba(255,255,255,0.18); color: white; border: 1px solid rgba(255,255,255,0.12);">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <div>
+                    <p class="text-uppercase small mb-1 opacity-75" style="letter-spacing: 0.12em;">Student workspace</p>
+                    <h3 class="fw-bold mb-1">Welcome, {{ request.user.first_name|default:request.user.username }}! 👋</h3>
+                    <p class="mb-0 opacity-90">Here is a quick view of your hostel activity and updates today.</p>
+                </div>
             </div>
-            <div>
-                <h3 class="fw-bold mb-1">Welcome, {{ request.user.first_name|default:request.user.username }}! 👋</h3>
-                <p class="text-slate-500 mb-0">Here's what's happening with your hostel accommodation today.</p>
+            <div class="mt-3 d-flex flex-wrap gap-2">
+                <span class="metric-pill"><i class="fas fa-shield-alt"></i> Profile ready</span>
+                <span class="metric-pill"><i class="fas fa-exclamation-triangle"></i> {{ pending_complaints }} open items</span>
+                <span class="metric-pill"><i class="fas fa-calendar-check"></i> {{ pending_leave }} leave requests</span>
+            </div>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+            <div class="dashboard-preview text-start">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold">Today’s overview</span>
+                    <span class="small"><i class="fas fa-arrow-trend-up me-1"></i>Live</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: 78%"></div>
+                </div>
+                <div class="mini-bars">
+                    <span style="height: 28px"></span>
+                    <span style="height: 44px"></span>
+                    <span style="height: 36px"></span>
+                    <span style="height: 56px"></span>
+                    <span style="height: 40px"></span>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-5 text-md-end mt-3 mt-md-0">
+</div>
+
+<div class="row align-items-center mb-4">
+    <div class="col-12 text-lg-end">
         <a href="{% url 'add_complaint' %}" class="btn btn-gradient me-2">
             <i class="fas fa-plus-circle me-1"></i>New Complaint
+        </a>
+        <a href="{% url 'student_self_service' %}" class="btn btn-outline-primary me-2">
+            <i class="fas fa-tools me-1"></i>Self-Service Portal
         </a>
         <a href="{% url 'apply_leave' %}" class="btn btn-outline-primary">
             <i class="fas fa-plane-departure me-1"></i>Apply Leave
@@ -71,7 +103,7 @@
 <div class="row g-4">
     <!-- Profile Card -->
     <div class="col-lg-4">
-        <div class="card h-100 border-0 shadow-sm">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 22px;">
             <div class="card-header bg-white border-bottom py-3">
                 <h5 class="fw-bold mb-0 text-dark">
                     <i class="fas fa-id-card text-primary me-2"></i>My Profile Details
@@ -120,7 +152,7 @@
 
     <!-- Complaints & Activity -->
     <div class="col-lg-8">
-        <div class="card h-100 border-0 shadow-sm">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 22px;">
             <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                 <h5 class="fw-bold mb-0 text-dark">
                     <i class="fas fa-exclamation-circle text-primary me-2"></i>Recent Complaints
@@ -161,6 +193,68 @@
                         <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                         <p class="text-slate-500 mb-0">No active complaints found. Everything looks good!</p>
                     </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notifications and Chat Widgets -->
+<div class="row mt-4 g-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-bell text-primary me-2"></i>Recent Notifications</h5>
+                <a href="{% url 'notifications' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold">View All →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_notifications %}
+                    <div class="list-group list-group-flush">
+                        {% for notification in recent_notifications %}
+                            <div class="list-group-item p-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-semibold mb-1">{{ notification.title }}</h6>
+                                        <p class="text-slate-500 mb-1 small">{{ notification.message }}</p>
+                                        <small class="text-slate-400">{{ notification.created_at|date:'d M Y, H:i' }}</small>
+                                    </div>
+                                    {% if not notification.is_read %}
+                                        <span class="badge badge-pending">New</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-slate-500">No notifications yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-comments text-primary me-2"></i>Recent Chats</h5>
+                <a href="{% url 'chat' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold">Open Chat →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_conversations %}
+                    <div class="list-group list-group-flush">
+                        {% for conversation in recent_conversations %}
+                            <a class="list-group-item list-group-item-action p-3" href="{% url 'chat' %}?conversation={{ conversation.id }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="fw-semibold mb-1">{{ conversation.title|default:'Support Chat' }}</h6>
+                                        <small class="text-slate-500">{{ conversation.updated_at|date:'d M Y, H:i' }}</small>
+                                    </div>
+                                    <span class="badge bg-light text-dark border">{{ conversation.messages.count }}</span>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-slate-500">No conversations yet.</div>
                 {% endif %}
             </div>
         </div>

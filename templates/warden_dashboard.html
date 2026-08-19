@@ -3,19 +3,48 @@
 {% block title %}Warden Dashboard - Hostel Hub{% endblock %}
 
 {% block content %}
-<div class="row align-items-center mb-4 pb-2">
-    <div class="col-md-8">
-        <div class="d-flex align-items-center">
-            <div class="stat-icon-wrapper me-3 bg-primary bg-opacity-10 text-primary mb-0" style="width: 54px; height: 54px; font-size: 1.6rem;">
-                <i class="fas fa-user-shield"></i>
+<div class="spatial-shell mb-4 text-white">
+    <div class="row align-items-center g-3 position-relative">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center">
+                <div class="stat-icon-wrapper me-3 mb-0" style="width: 60px; height: 60px; font-size: 1.8rem; background: rgba(255,255,255,0.18); color: white; border: 1px solid rgba(255,255,255,0.12);">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div>
+                    <p class="text-uppercase small mb-1 opacity-75" style="letter-spacing: 0.12em;">Security control</p>
+                    <h3 class="fw-bold mb-1">Warden Dashboard 🛡️</h3>
+                    <p class="mb-0 opacity-90">Keep registrations, complaints, and leave requests moving smoothly.</p>
+                </div>
             </div>
-            <div>
-                <h3 class="fw-bold mb-1">Warden Dashboard 🛡️</h3>
-                <p class="text-slate-500 mb-0">Overview of student registrations, complaints, and leave applications.</p>
+            <div class="mt-3 d-flex flex-wrap gap-2">
+                <span class="metric-pill"><i class="fas fa-user-check"></i> {{ pending_registrations|length }} approvals pending</span>
+                <span class="metric-pill"><i class="fas fa-headset"></i> {{ complaints|length }} complaints</span>
+                <span class="metric-pill"><i class="fas fa-users"></i> {{ total_students }} active students</span>
+            </div>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+            <div class="dashboard-preview text-start">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold">Operations pulse</span>
+                    <span class="small"><i class="fas fa-bolt me-1"></i>Priority</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: 84%"></div>
+                </div>
+                <div class="mini-bars">
+                    <span style="height: 24px"></span>
+                    <span style="height: 36px"></span>
+                    <span style="height: 48px"></span>
+                    <span style="height: 58px"></span>
+                    <span style="height: 42px"></span>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+</div>
+
+<div class="row align-items-center mb-4">
+    <div class="col-12 text-lg-end">
         <a href="{% url 'pending_registrations' %}" class="btn btn-gradient me-2">
             <i class="fas fa-user-check me-1"></i>Approve Registrations
         </a>
@@ -63,7 +92,7 @@
 </div>
 
 <!-- Quick Action Portal -->
-<div class="card border-0 shadow-sm mb-4">
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 22px;">
     <div class="card-header bg-white border-bottom py-3">
         <h5 class="fw-bold mb-0 text-dark">
             <i class="fas fa-bolt text-warning me-2"></i>Quick Operations
@@ -96,10 +125,90 @@
                 </a>
             </div>
             <div class="col-md-3">
+                <a href="{% url 'warden_attendance_analytics' %}" class="btn btn-outline-success w-100 py-3 d-flex flex-column align-items-center">
+                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                    <span>Attendance Analytics</span>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{% url 'warden_visitors' %}" class="btn btn-outline-secondary w-100 py-3 d-flex flex-column align-items-center">
+                    <i class="fas fa-user-check fa-2x mb-2"></i>
+                    <span>Visitor Check-In</span>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{% url 'export_reports' 'fees' 'csv' %}" class="btn btn-outline-info w-100 py-3 d-flex flex-column align-items-center">
+                    <i class="fas fa-download fa-2x mb-2"></i>
+                    <span>Export Reports</span>
+                </a>
+            </div>
+            <div class="col-md-3">
                 <a href="{% url 'profile' %}" class="btn btn-outline-dark w-100 py-3 d-flex flex-column align-items-center">
                     <i class="fas fa-user-cog fa-2x mb-2"></i>
                     <span>My Warden Profile</span>
                 </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notifications and Chat Widgets -->
+<div class="row g-4 mt-1">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-bell text-primary me-2"></i>Recent Notifications</h5>
+                <a href="{% url 'notifications' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold">View All →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_notifications %}
+                    <div class="list-group list-group-flush">
+                        {% for notification in recent_notifications %}
+                            <div class="list-group-item p-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-semibold mb-1">{{ notification.title }}</h6>
+                                        <p class="text-slate-500 mb-1 small">{{ notification.message }}</p>
+                                        <small class="text-slate-400">{{ notification.created_at|date:'d M Y, H:i' }}</small>
+                                    </div>
+                                    {% if not notification.is_read %}
+                                        <span class="badge badge-pending">New</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-slate-500">No notifications yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-comments text-primary me-2"></i>Recent Chats</h5>
+                <a href="{% url 'chat' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold">Open Chat →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_conversations %}
+                    <div class="list-group list-group-flush">
+                        {% for conversation in recent_conversations %}
+                            <a class="list-group-item list-group-item-action p-3" href="{% url 'chat' %}?conversation={{ conversation.id }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="fw-semibold mb-1">{{ conversation.title|default:'Support Chat' }}</h6>
+                                        <small class="text-slate-500">{{ conversation.updated_at|date:'d M Y, H:i' }}</small>
+                                    </div>
+                                    <span class="badge bg-light text-dark border">{{ conversation.messages.count }}</span>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-slate-500">No conversations yet.</div>
+                {% endif %}
             </div>
         </div>
     </div>

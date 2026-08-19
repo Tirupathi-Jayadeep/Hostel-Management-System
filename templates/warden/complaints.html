@@ -22,52 +22,64 @@
     {% endif %}
 
     {% if complaints %}
-    <div class="row">
-        {% for complaint in complaints %}
-        <div class="col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header">
-                    <div class="row align-items-center">
-                        <div class="col">
-                            <h6 class="mb-0">{{ complaint.title }}</h6>
-                            <small class="text-muted">by {{ complaint.student.user.first_name }} {{ complaint.student.user.last_name }}</small>
-                        </div>
-                        <div class="col-auto">
-                            {% if complaint.priority == 'high' %}
-                                <span class="badge bg-danger">High</span>
-                            {% elif complaint.priority == 'medium' %}
-                                <span class="badge bg-warning">Medium</span>
-                            {% else %}
-                                <span class="badge bg-info">Low</span>
-                            {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <button type="submit" name="bulk_action" value="resolve" class="btn btn-success">
+                <i class="fas fa-check me-1"></i>Bulk Resolve
+            </button>
+            <button type="submit" name="bulk_action" value="reject" class="btn btn-warning text-dark">
+                <i class="fas fa-times me-1"></i>Bulk Reject
+            </button>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Resolution Notes</label>
+            <textarea class="form-control" name="resolution_notes" rows="2" placeholder="Enter notes for all selected complaints"></textarea>
+        </div>
+        <div class="row">
+            {% for complaint in complaints %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h6 class="mb-0">{{ complaint.title }}</h6>
+                                <small class="text-muted">by {{ complaint.student.user.first_name }} {{ complaint.student.user.last_name }}</small>
+                            </div>
+                            <div class="col-auto">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="complaint_ids" value="{{ complaint.id }}" id="complaint_{{ complaint.id }}">
+                                    <label class="form-check-label" for="complaint_{{ complaint.id }}">Select</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted mb-2">
-                        <small>
-                            <i class="fas fa-folder me-1"></i>{{ complaint.category }}
-                        </small>
-                    </p>
-                    <p class="card-text">{{ complaint.description|truncatewords:25 }}</p>
-                    <p class="text-muted mb-0">
-                        <small>
-                            <i class="fas fa-calendar me-1"></i>{{ complaint.created_at|date:"d M Y H:i" }}
-                        </small>
-                    </p>
-                </div>
-                <div class="card-footer bg-light">
-                    <a href="{% url 'resolve_complaint' complaint.id %}" class="btn btn-sm btn-primary">
-                        <i class="fas fa-check me-1"></i>Resolve
-                    </a>
-                    <a href="{% url 'complaint_detail' complaint.id %}" class="btn btn-sm btn-secondary">
-                        <i class="fas fa-eye me-1"></i>View
-                    </a>
+                    <div class="card-body">
+                        <p class="text-muted mb-2">
+                            <small>
+                                <i class="fas fa-folder me-1"></i>{{ complaint.category }}
+                            </small>
+                        </p>
+                        <p class="card-text">{{ complaint.description|truncatewords:25 }}</p>
+                        <p class="text-muted mb-0">
+                            <small>
+                                <i class="fas fa-calendar me-1"></i>{{ complaint.created_at|date:"d M Y H:i" }}
+                            </small>
+                        </p>
+                    </div>
+                    <div class="card-footer bg-light d-flex gap-2 flex-wrap">
+                        <a href="{% url 'resolve_complaint' complaint.id %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-check me-1"></i>Resolve
+                        </a>
+                        <a href="{% url 'complaint_detail' complaint.id %}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-eye me-1"></i>View
+                        </a>
+                    </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+    </form>
     {% else %}
     <div class="alert alert-success">
         <i class="fas fa-check-circle me-2"></i>

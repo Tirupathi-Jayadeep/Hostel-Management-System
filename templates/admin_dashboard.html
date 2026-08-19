@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - Hostel Hub{% endblock %}
+
+{% block content %}
+<div class="spatial-shell mb-4 text-white">
+    <div class="row align-items-center g-3 position-relative">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center">
+                <div class="stat-icon-wrapper me-3 mb-0" style="width: 60px; height: 60px; font-size: 1.8rem; background: rgba(255,255,255,0.18); color: white; border: 1px solid rgba(255,255,255,0.12);">
+                    <i class="fas fa-user-cog"></i>
+                </div>
+                <div>
+                    <p class="text-uppercase small mb-1 opacity-75" style="letter-spacing: 0.12em;">Operations control</p>
+                    <h3 class="fw-bold mb-1">Admin Dashboard</h3>
+                    <p class="mb-0 opacity-90">Monitor approvals, alerts, and community activity across the hostel.</p>
+                </div>
+            </div>
+            <div class="mt-3 d-flex flex-wrap gap-2">
+                <span class="metric-pill"><i class="fas fa-user-check"></i> {{ pending_count }} approvals</span>
+                <span class="metric-pill"><i class="fas fa-bell"></i> {{ unread_alerts }} unread alerts</span>
+                <span class="metric-pill"><i class="fas fa-comments"></i> {{ recent_conversations|length }} chat threads</span>
+            </div>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+            <div class="dashboard-preview text-start">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold">Platform pulse</span>
+                    <span class="small"><i class="fas fa-sparkles me-1"></i>Spatial UI</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: 92%"></div>
+                </div>
+                <div class="mini-bars">
+                    <span style="height: 18px"></span>
+                    <span style="height: 30px"></span>
+                    <span style="height: 52px"></span>
+                    <span style="height: 46px"></span>
+                    <span style="height: 62px"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="spatial-stat">
+            <span class="label"><span class="icon"><i class="fas fa-users"></i></span> Total Students</span>
+            <span class="value">{{ total_students }}</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="spatial-stat">
+            <span class="label"><span class="icon"><i class="fas fa-user-check"></i></span> Pending Approvals</span>
+            <span class="value">{{ pending_count }}</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="spatial-stat">
+            <span class="label"><span class="icon"><i class="fas fa-shield-alt"></i></span> Active Students</span>
+            <span class="value">{{ active_students }}</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="spatial-stat">
+            <span class="label"><span class="icon"><i class="fas fa-bell"></i></span> Unread Alerts</span>
+            <span class="value">{{ unread_alerts }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="row align-items-center mb-4">
+    <div class="col-12 text-lg-end">
+        <a href="{% url 'pending_registrations' %}" class="btn btn-gradient me-2">
+            <i class="fas fa-user-check me-1"></i>Review Registrations
+        </a>
+        <a href="{% url 'notifications' %}" class="btn btn-outline-primary">
+            <i class="fas fa-bell me-1"></i>Open Alerts
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <a href="{% url 'pending_registrations' %}" class="spatial-action w-100 p-3 text-decoration-none">
+            <i class="fas fa-user-plus"></i>
+            <span class="fw-semibold">Review Registrations</span>
+            {% if pending_count %}<span class="badge badge-pending">{{ pending_count }} pending</span>{% endif %}
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{% url 'notifications' %}" class="spatial-action w-100 p-3 text-decoration-none">
+            <i class="fas fa-bell"></i>
+            <span class="fw-semibold">Notifications</span>
+            {% if unread_alerts %}<span class="badge badge-info">{{ unread_alerts }} unread</span>{% endif %}
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{% url 'chat' %}" class="spatial-action w-100 p-3 text-decoration-none">
+            <i class="fas fa-comments"></i>
+            <span class="fw-semibold">Community Chat</span>
+            {% if recent_conversations %}<span class="badge bg-light text-dark border">{{ recent_conversations|length }} active</span>{% endif %}
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{% url 'profile' %}" class="spatial-action w-100 p-3 text-decoration-none">
+            <i class="fas fa-user-cog"></i>
+            <span class="fw-semibold">Admin Profile</span>
+            <span class="badge badge-success">Ready</span>
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-user-clock text-primary me-2"></i>Pending Registrations</h5>
+                <span class="badge badge-pending">{{ pending_count }} pending</span>
+            </div>
+            <div class="card-body p-0">
+                {% if pending_registrations %}
+                    <div class="list-group list-group-flush">
+                        {% for user in pending_registrations|slice:':5' %}
+                            <div class="list-group-item p-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="fw-semibold mb-1">{{ user.username }}</h6>
+                                        <small class="text-slate-500">{{ user.email }}</small>
+                                    </div>
+                                    <a href="{% url 'pending_registrations' %}" class="btn btn-sm btn-outline-primary">Review</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-slate-500">No pending registrations.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-bell text-primary me-2"></i>Recent Notifications</h5>
+                <a href="{% url 'notifications' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold">View All →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_notifications %}
+                    <div class="list-group list-group-flush">
+                        {% for notification in recent_notifications %}
+                            <div class="list-group-item p-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-semibold mb-1">{{ notification.title }}</h6>
+                                        <p class="text-slate-500 mb-1 small">{{ notification.message }}</p>
+                                        <small class="text-slate-400">{{ notification.created_at|date:'d M Y, H:i' }}</small>
+                                    </div>
+                                    {% if not notification.is_read %}
+                                        <span class="badge badge-pending">New</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-slate-500">No notifications yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fas fa-comments text-primary me-2"></i>Recent Chats</h5>
+                <a href="{% url 'chat' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold">Open Chat →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_conversations %}
+                    <div class="list-group list-group-flush">
+                        {% for conversation in recent_conversations %}
+                            <a class="list-group-item list-group-item-action p-3" href="{% url 'chat' %}?conversation={{ conversation.id }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="fw-semibold mb-1">{{ conversation.title|default:'Support Chat' }}</h6>
+                                        <small class="text-slate-500">{{ conversation.updated_at|date:'d M Y, H:i' }}</small>
+                                    </div>
+                                    <span class="badge bg-light text-dark border">{{ conversation.messages.count }}</span>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-slate-500">No conversations yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

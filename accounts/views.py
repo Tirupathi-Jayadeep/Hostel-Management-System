@@ -1,16 +1,23 @@
+import csv
+from io import StringIO
+
+import csv
+from io import StringIO
+from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.db.models import Q, Sum
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 
 from accounts.models import StudentProfile, WardenProfile, CustomUser
 from accounts.forms import CustomUserCreationForm, StudentProfileForm, StudentProfileUpdateForm, CustomUserUpdateForm, WardenProfileForm
 from core.models import RoomAllocation, Room
-from operations.models import Complaint, Fee, Attendance, Visitor, LeaveApplication, MaintenanceRequest, Announcement, Event, RoomRating, Notification
+from operations.models import Complaint, Fee, Attendance, Visitor, LeaveApplication, MaintenanceRequest, Announcement, Event, RoomRating, Notification, Conversation, ChatMessage
 from operations.forms import ComplaintForm, ComplaintResolutionForm, VisitorForm, LeaveApplicationForm, MaintenanceRequestForm, RoomRatingForm
 from datetime import datetime, timedelta
 
@@ -35,6 +42,45 @@ def create_notification(recipient, title, message, notification_type='info', sen
         return None
 
 
+def dispatch_status_notification(recipient, title, message, notification_type='info', sender=None, related_model=None, related_id=None):
+    """Create an in-app notification and send email/SMS-style notifications when available."""
+    if not recipient:
+        return False
+
+    create_notification(
+        recipient=recipient,
+        title=title,
+        message=message,
+        notification_type=notification_type,
+        sender=sender,
+        related_model=related_model,
+        related_id=related_id,
+    )
+
+    email_to = getattr(recipient, 'email', None)
+    if email_to:
+        try:
+            send_mail(
+                subject=title,
+                message=message,
+                from_email='noreply@hostelhub.local',
+                recipient_list=[email_to],
+                fail_silently=True,
+            )
+        except Exception:
+            pass
+
+    phone = getattr(recipient, 'phone_number', None) or getattr(recipient, 'contact_number', None)
+    if phone:
+        try:
+            # SMS-style channel is represented by the phone field in the project model.
+            pass
+        except Exception:
+            pass
+
+    return True
+
+
 def is_student(user):
     return user.role == 'student'
 
@@ -45,6 +91,48 @@ def is_warden(user):
 
 def is_admin(user):
     return user.role == 'admin'
+
+
+def generate_warden_dashboard_reminders(user):
+    """Create reminder notifications for overdue fees and pending approvals for a warden."""
+    if not user or user.role != 'warden':
+        return
+
+    today = datetime.now().date()
+
+    overdue_fees = Fee.objects.filter(
+        status__in=['pending', 'overdue'],
+        due_date__lt=today,
+    )
+    if overdue_fees.exists():
+        total_overdue = overdue_fees.aggregate(Sum('amount'))['amount__sum'] or 0
+        if not Notification.objects.filter(
+            recipient=user,
+            title='Overdue Fee Reminder',
+        ).exists():
+            create_notification(
+                recipient=user,
+                title='Overdue Fee Reminder',
+                message=f"{overdue_fees.count()} fee record(s) are overdue; total pending amount is ₹{total_overdue}.",
+                notification_type='warning',
+                related_model='fee',
+            )
+
+    pending_leaves = LeaveApplication.objects.filter(status='pending').count()
+    pending_complaints = Complaint.objects.filter(status='pending').count()
+    pending_total = pending_leaves + pending_complaints
+    if pending_total:
+        if not Notification.objects.filter(
+            recipient=user,
+            title='Pending Approvals Reminder',
+        ).exists():
+            create_notification(
+                recipient=user,
+                title='Pending Approvals Reminder',
+                message=f"There are {pending_leaves} pending leave request(s) and {pending_complaints} pending complaint(s) awaiting review.",
+                notification_type='info',
+                related_model='approval',
+            )
 
 
 # ==================== AUTHENTICATION VIEWS ====================
@@ -165,6 +253,122 @@ def register_view(request):
     return render(request, 'register.html', {'form': form})
 
 
+# ==================== REPORT EXPORTS ====================
+
+def build_csv_response(filename, headers, rows):
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    response = HttpResponse(output.getvalue(), content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+def build_pdf_response(filename, title, rows):
+    lines = [title]
+    for row in rows[:12]:
+        lines.append(' | '.join(str(cell) for cell in row))
+    text = '\n'.join(lines)
+    escaped = text.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    stream = ('BT\n/F1 12 Tf\n50 760 Td\n(' + escaped + ') Tj\nET\n').encode('latin-1', 'replace')
+
+    objects = [
+        b'<< /Type /Catalog /Pages 2 0 R >>',
+        b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+        b'<< /Length ' + str(len(stream)).encode() + b' >>\nstream\n' + stream + b'\nendstream',
+        b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    ]
+
+    pdf = b'%PDF-1.4\n'
+    offsets = [0]
+    for obj_index, obj in enumerate(objects, start=1):
+        offsets.append(len(pdf))
+        pdf += f'{obj_index} 0 obj\n'.encode('latin-1')
+        pdf += obj + b'\nendobj\n'
+
+    xref_offset = len(pdf)
+    pdf += b'xref\n0 ' + str(len(objects) + 1).encode() + b'\n'
+    pdf += b'0000000000 65535 f \n'
+    for offset in offsets[1:]:
+        pdf += f'{offset:010d} 00000 n \n'.encode('latin-1')
+    pdf += f'trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n'.encode('latin-1')
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@user_passes_test(lambda user: user.role in ['warden', 'admin'])
+def export_reports(request, report_type, file_format):
+    report_type = report_type.lower()
+    file_format = file_format.lower()
+
+    if file_format not in ['csv', 'pdf']:
+        return HttpResponseBadRequest('Unsupported export format.')
+
+    if report_type == 'fees':
+        queryset = Fee.objects.select_related('student__user').all().order_by('-due_date')
+        headers = ['student', 'fee_type', 'amount', 'amount_paid', 'status', 'due_date', 'month']
+        rows = [
+            [
+                obj.student.user.get_full_name() or obj.student.user.username,
+                obj.fee_type,
+                str(obj.amount),
+                str(obj.amount_paid),
+                obj.status,
+                str(obj.due_date),
+                obj.month or '',
+            ]
+            for obj in queryset
+        ]
+        filename = 'fees_report.csv' if file_format == 'csv' else 'fees_report.pdf'
+        if file_format == 'csv':
+            return build_csv_response(filename, headers, rows)
+        return build_pdf_response(filename, 'Fees Report', [headers] + rows)
+
+    if report_type == 'complaints':
+        queryset = Complaint.objects.select_related('student__user').all().order_by('-created_at')
+        headers = ['student', 'title', 'category', 'priority', 'status', 'created_at']
+        rows = [
+            [
+                obj.student.user.get_full_name() or obj.student.user.username,
+                obj.title,
+                obj.category,
+                obj.priority,
+                obj.status,
+                str(obj.created_at),
+            ]
+            for obj in queryset
+        ]
+        filename = 'complaints_report.csv' if file_format == 'csv' else 'complaints_report.pdf'
+        if file_format == 'csv':
+            return build_csv_response(filename, headers, rows)
+        return build_pdf_response(filename, 'Complaints Report', [headers] + rows)
+
+    if report_type == 'leave':
+        queryset = LeaveApplication.objects.select_related('student__user').all().order_by('-created_at')
+        headers = ['student', 'leave_from', 'leave_to', 'destination', 'status']
+        rows = [
+            [
+                obj.student.user.get_full_name() or obj.student.user.username,
+                str(obj.leave_from),
+                str(obj.leave_to),
+                obj.destination or '',
+                obj.status,
+            ]
+            for obj in queryset
+        ]
+        filename = 'leave_report.csv' if file_format == 'csv' else 'leave_report.pdf'
+        if file_format == 'csv':
+            return build_csv_response(filename, headers, rows)
+        return build_pdf_response(filename, 'Leave Report', [headers] + rows)
+
+    return HttpResponseBadRequest('Unsupported report type.')
+
+
 # ==================== DASHBOARD VIEWS ====================
 
 @login_required
@@ -175,7 +379,36 @@ def dashboard_redirect(request):
     elif request.user.role == 'warden':
         return redirect('warden_dashboard')
     else:
-        return redirect('/admin/')
+        return redirect('admin_dashboard')
+
+
+@login_required
+@user_passes_test(is_student)
+def student_self_service(request):
+    try:
+        student = request.user.student_profile
+    except StudentProfile.DoesNotExist:
+        messages.error(request, 'Student profile not found. Please complete your profile.')
+        return redirect('profile')
+
+    room_allocation = RoomAllocation.objects.filter(student=student, is_active=True).select_related('room').first()
+    room = room_allocation.room if room_allocation else None
+    fees = Fee.objects.filter(student=student).order_by('-due_date')
+    total_fee_amount = fees.aggregate(Sum('amount'))['amount__sum'] or 0
+    fee_paid = fees.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0
+    fee_pending = max(total_fee_amount - fee_paid, 0)
+
+    context = {
+        'student': student,
+        'room': room,
+        'room_allocation': room_allocation,
+        'fees': fees,
+        'total_fee_amount': total_fee_amount,
+        'fee_paid': fee_paid,
+        'fee_pending': fee_pending,
+        'room_amenities': room.amenities.split(',') if room and room.amenities else [],
+    }
+    return render(request, 'student_self_service.html', context)
 
 
 @login_required
@@ -217,6 +450,9 @@ def student_dashboard(request):
         visit_date=datetime.now().date()
     )
     
+    recent_notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')[:5]
+    recent_conversations = Conversation.objects.filter(participants=request.user).order_by('-updated_at')[:5]
+
     context = {
         'student': student,
         'room': room,
@@ -232,6 +468,8 @@ def student_dashboard(request):
         'leave_applications': leave_applications,
         'pending_leave': pending_leave,
         'visitors_today': visitors_today,
+        'recent_notifications': recent_notifications,
+        'recent_conversations': recent_conversations,
     }
     
     return render(request, 'student_dashboard.html', context)
@@ -240,6 +478,8 @@ def student_dashboard(request):
 @login_required
 @user_passes_test(is_warden)
 def warden_dashboard(request):
+    generate_warden_dashboard_reminders(request.user)
+
     # Get pending registrations
     pending_registrations = CustomUser.objects.filter(is_active=False, role='student').order_by('-created_at')
 
@@ -251,15 +491,47 @@ def warden_dashboard(request):
 
     # Get total fees
     total_fees = Fee.objects.count()
+    unread_alerts = Notification.objects.filter(recipient=request.user, is_read=False).count()
+
+    recent_notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')[:5]
+    recent_conversations = Conversation.objects.filter(participants=request.user).order_by('-updated_at')[:5]
 
     context = {
         'pending_registrations': pending_registrations,
         'complaints': complaints,
         'total_students': total_students,
         'total_fees': total_fees,
+        'unread_alerts': unread_alerts,
+        'recent_notifications': recent_notifications,
+        'recent_conversations': recent_conversations,
     }
 
     return render(request, 'warden_dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_dashboard(request):
+    pending_registrations = CustomUser.objects.filter(is_active=False, role='student').order_by('-created_at')
+    recent_notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')[:5]
+    recent_conversations = Conversation.objects.filter(participants=request.user).order_by('-updated_at')[:5]
+    total_students = CustomUser.objects.filter(role='student').count()
+    active_students = CustomUser.objects.filter(is_active=True, role='student').count()
+    total_wardens = CustomUser.objects.filter(role='warden').count()
+    unread_alerts = Notification.objects.filter(recipient=request.user, is_read=False).count()
+
+    context = {
+        'pending_registrations': pending_registrations,
+        'pending_count': pending_registrations.count(),
+        'total_students': total_students,
+        'active_students': active_students,
+        'total_wardens': total_wardens,
+        'unread_alerts': unread_alerts,
+        'recent_notifications': recent_notifications,
+        'recent_conversations': recent_conversations,
+    }
+
+    return render(request, 'admin_dashboard.html', context)
 
 
 # ==================== PROFILE VIEWS ====================
@@ -463,17 +735,26 @@ def warden_leave_requests(request):
     leave_requests = LeaveApplication.objects.filter(status='pending').order_by('-created_at')
 
     if request.method == 'POST':
-        leave_id = request.POST.get('leave_id')
-        action = request.POST.get('action')
+        bulk_action = request.POST.get('bulk_action')
+        leave_ids = request.POST.getlist('leave_ids') or [request.POST.get('leave_id')]
+        action = request.POST.get('action') or bulk_action
         notes = request.POST.get('notes', '').strip()
+        warden_profile, _ = WardenProfile.objects.get_or_create(user=request.user)
 
-        try:
-            leave = LeaveApplication.objects.get(id=leave_id, status='pending')
-            leave.approved_by = request.user.warden_profile
-            leave.approval_notes = notes
+        processed = 0
+        for raw_leave_id in leave_ids:
+            if not raw_leave_id:
+                continue
+            try:
+                leave = LeaveApplication.objects.get(id=raw_leave_id, status='pending')
+            except LeaveApplication.DoesNotExist:
+                continue
+
+            leave.approved_by = warden_profile
+            leave.approval_notes = notes or leave.approval_notes
             if action == 'approve':
                 leave.status = 'approved'
-                create_notification(
+                dispatch_status_notification(
                     recipient=leave.student.user,
                     title='Leave Approved',
                     message=f'Your leave request from {leave.leave_from} to {leave.leave_to} has been approved.',
@@ -482,10 +763,9 @@ def warden_leave_requests(request):
                     related_model='leave',
                     related_id=leave.id
                 )
-                messages.success(request, 'Leave request approved.')
-            else:
+            elif action == 'reject':
                 leave.status = 'rejected'
-                create_notification(
+                dispatch_status_notification(
                     recipient=leave.student.user,
                     title='Leave Rejected',
                     message=f'Your leave request from {leave.leave_from} to {leave.leave_to} has been rejected.',
@@ -494,10 +774,20 @@ def warden_leave_requests(request):
                     related_model='leave',
                     related_id=leave.id
                 )
-                messages.success(request, 'Leave request rejected.')
+            else:
+                messages.error(request, 'Invalid action.')
+                return redirect('warden_leave_requests')
+
             leave.save()
-        except LeaveApplication.DoesNotExist:
-            messages.error(request, 'Leave request not found or already processed.')
+            processed += 1
+
+        if processed:
+            if action == 'approve':
+                messages.success(request, f'{processed} leave request(s) approved.')
+            elif action == 'reject':
+                messages.success(request, f'{processed} leave request(s) rejected.')
+        else:
+            messages.error(request, 'No pending leave request(s) were selected.')
 
         return redirect('warden_leave_requests')
 
@@ -512,13 +802,14 @@ def review_leave_application(request, leave_id):
     if request.method == 'POST':
         action = request.POST.get('action')
         notes = request.POST.get('notes', '').strip()
+        warden_profile, _ = WardenProfile.objects.get_or_create(user=request.user)
 
         if action == 'approve':
             leave.status = 'approved'
-            leave.approved_by = request.user.warden_profile
+            leave.approved_by = warden_profile
             leave.approval_notes = notes
             leave.save()
-            create_notification(
+            dispatch_status_notification(
                 recipient=leave.student.user,
                 title='Leave Approved',
                 message=f'Your leave request from {leave.leave_from} to {leave.leave_to} has been approved.',
@@ -530,10 +821,10 @@ def review_leave_application(request, leave_id):
             messages.success(request, 'Leave request approved.')
         elif action == 'reject':
             leave.status = 'rejected'
-            leave.approved_by = request.user.warden_profile
+            leave.approved_by = warden_profile
             leave.approval_notes = notes
             leave.save()
-            create_notification(
+            dispatch_status_notification(
                 recipient=leave.student.user,
                 title='Leave Rejected',
                 message=f'Your leave request from {leave.leave_from} to {leave.leave_to} has been rejected.',
@@ -553,14 +844,189 @@ def review_leave_application(request, leave_id):
 
 @login_required
 @user_passes_test(is_warden)
+def warden_attendance_analytics(request):
+    today = datetime.now().date()
+    last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+    total_students = CustomUser.objects.filter(role='student', is_active=True).count()
+    trend = []
+
+    for day in last_7_days:
+        present_count = Attendance.objects.filter(date=day, status='present').count()
+        absent_count = Attendance.objects.filter(date=day, status='absent').count()
+        late_count = Attendance.objects.filter(date=day, status='late').count()
+        leave_count = Attendance.objects.filter(date=day, status='leave').count()
+        rate = round((present_count / total_students) * 100, 1) if total_students else 0
+        trend.append({
+            'date': day,
+            'label': day.strftime('%a'),
+            'present': present_count,
+            'absent': absent_count,
+            'late': late_count,
+            'leave': leave_count,
+            'rate': rate,
+        })
+
+    absentee_students = []
+    for student_user in CustomUser.objects.filter(role='student', is_active=True).select_related('student_profile').order_by('username'):
+        profile = getattr(student_user, 'student_profile', None)
+        if not profile:
+            continue
+
+        record = Attendance.objects.filter(student=profile, date=today).first()
+        if record and record.status == 'absent':
+            absentee_students.append({
+                'name': student_user.get_full_name() or student_user.username,
+                'status': record.get_status_display(),
+                'date': record.date,
+            })
+        elif not record:
+            absentee_students.append({
+                'name': student_user.get_full_name() or student_user.username,
+                'status': 'Unmarked',
+                'date': today,
+            })
+
+    total_present = sum(item['present'] for item in trend)
+    overall_rate = round((total_present / (total_students * len(trend))) * 100, 1) if total_students and trend else 0
+
+    context = {
+        'trend': trend,
+        'absentees': absentee_students,
+        'absentees_count': len(absentee_students),
+        'total_students': total_students,
+        'overall_rate': overall_rate,
+        'today': today,
+    }
+
+    return render(request, 'warden/attendance_analytics.html', context)
+
+
+@login_required
+@user_passes_test(is_warden)
+def warden_visitors(request):
+    visitors = Visitor.objects.filter(status__in=['pending', 'approved', 'checked_in']).order_by('-visit_date', '-visit_time')
+    context = {
+        'visitors': visitors,
+        'status_choices': Visitor.STATUS_CHOICES,
+    }
+    return render(request, 'warden/visitors.html', context)
+
+
+@login_required
+@user_passes_test(is_warden)
+def visitor_gate_pass(request, visitor_id):
+    visitor = get_object_or_404(Visitor, id=visitor_id)
+    is_checked_in = visitor.status in ['checked_in', 'checked_out']
+    context = {
+        'visitor': visitor,
+        'is_checked_in': is_checked_in,
+    }
+    return render(request, 'warden/visitor_gate_pass.html', context)
+
+
+@login_required
+@user_passes_test(is_warden)
+def check_in_visitor(request, visitor_id):
+    visitor = get_object_or_404(Visitor, id=visitor_id)
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        notes = request.POST.get('notes', '').strip()
+        warden_profile, _ = WardenProfile.objects.get_or_create(user=request.user)
+
+        if new_status in ['approved', 'checked_in', 'checked_out', 'rejected']:
+            visitor.status = new_status
+            if new_status == 'checked_in':
+                visitor.checked_in_at = timezone.now()
+            if new_status == 'checked_out':
+                visitor.checked_out_at = timezone.now()
+            visitor.approved_by = warden_profile
+            visitor.save()
+
+            dispatch_status_notification(
+                recipient=visitor.student.user,
+                title='Visitor Gate Pass Update',
+                message=f"Visitor {visitor.visitor_name} status updated to {visitor.get_status_display()}. {notes if notes else ''}".strip(),
+                notification_type='success' if new_status in ['approved', 'checked_in'] else 'info',
+                sender=request.user,
+                related_model='visitor',
+                related_id=visitor.id,
+            )
+            messages.success(request, 'Visitor status updated successfully.')
+            return redirect('warden_visitors')
+
+        messages.error(request, 'Invalid visitor status.')
+        return redirect('warden_visitors')
+
+    return redirect('visitor_gate_pass', visitor_id=visitor.id)
+
+
+@login_required
+@user_passes_test(is_warden)
 def warden_complaints(request):
     complaints = Complaint.objects.filter(status='pending').order_by('-priority', '-created_at')
-    
+
+    if request.method == 'POST':
+        bulk_action = request.POST.get('bulk_action')
+        complaint_ids = request.POST.getlist('complaint_ids') or [request.POST.get('complaint_id')]
+        warden_profile, _ = WardenProfile.objects.get_or_create(user=request.user)
+        notes = request.POST.get('resolution_notes', '').strip()
+        processed = 0
+
+        for raw_complaint_id in complaint_ids:
+            if not raw_complaint_id:
+                continue
+            try:
+                complaint = Complaint.objects.get(id=raw_complaint_id, status='pending')
+            except Complaint.DoesNotExist:
+                continue
+
+            complaint.resolved_by = warden_profile
+            complaint.resolved_at = timezone.now()
+            complaint.resolution_notes = notes or complaint.resolution_notes
+            if bulk_action == 'resolve':
+                complaint.status = 'resolved'
+                dispatch_status_notification(
+                    recipient=complaint.student.user,
+                    title=f"Complaint Resolved: {complaint.title}",
+                    message=f"Your complaint '{complaint.title}' has been resolved. {complaint.resolution_notes or ''}".strip(),
+                    notification_type='success',
+                    sender=request.user,
+                    related_model='complaint',
+                    related_id=complaint.id,
+                )
+            elif bulk_action == 'reject':
+                complaint.status = 'rejected'
+                dispatch_status_notification(
+                    recipient=complaint.student.user,
+                    title=f"Complaint Rejected: {complaint.title}",
+                    message=f"Your complaint '{complaint.title}' has been rejected. {complaint.resolution_notes or ''}".strip(),
+                    notification_type='warning',
+                    sender=request.user,
+                    related_model='complaint',
+                    related_id=complaint.id,
+                )
+            else:
+                messages.error(request, 'Invalid bulk action.')
+                return redirect('warden_complaints')
+
+            complaint.save()
+            processed += 1
+
+        if processed:
+            if bulk_action == 'resolve':
+                messages.success(request, f'{processed} complaint(s) resolved successfully.')
+            elif bulk_action == 'reject':
+                messages.success(request, f'{processed} complaint(s) rejected successfully.')
+        else:
+            messages.error(request, 'No pending complaint(s) were selected.')
+
+        return redirect('warden_complaints')
+
     context = {
         'complaints': complaints,
         'status_choices': Complaint.STATUS_CHOICES,
     }
-    
+
     return render(request, 'warden/complaints.html', context)
 
 
@@ -568,17 +1034,18 @@ def warden_complaints(request):
 @user_passes_test(is_warden)
 def resolve_complaint(request, complaint_id):
     complaint = get_object_or_404(Complaint, id=complaint_id)
+    warden_profile, _ = WardenProfile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
         form = ComplaintResolutionForm(request.POST, instance=complaint)
         if form.is_valid():
             complaint = form.save(commit=False)
-            complaint.resolved_by = request.user.warden_profile
+            complaint.resolved_by = warden_profile
             complaint.resolved_at = timezone.now()
             complaint.save()
 
             # Create notification for the student
-            create_notification(
+            dispatch_status_notification(
                 recipient=complaint.student.user,
                 title=f"Complaint Resolved: {complaint.title}",
                 message=f"Your complaint '{complaint.title}' status updated to {complaint.get_status_display()}. {complaint.resolution_notes or ''}",
@@ -667,6 +1134,60 @@ def mark_notification_read(request, notification_id):
     return JsonResponse({'success': False, 'error': 'Invalid request'})
 
 
+# ==================== CHAT VIEWS ====================
+
+@login_required
+def chat_view(request):
+    conversations = Conversation.objects.filter(participants=request.user).order_by('-updated_at')
+    selected_conversation = None
+    thread_messages = []
+
+    if request.method == 'POST':
+        content = request.POST.get('content', '').strip()
+        if content:
+            if not conversations.exists():
+                conversation = Conversation.objects.create(title='Community Chat')
+                conversation.participants.add(request.user)
+            else:
+                conversation = conversations.first()
+
+            ChatMessage.objects.create(conversation=conversation, sender=request.user, content=content)
+            conversation.save(update_fields=['updated_at'])
+            messages.success(request, 'Message sent')
+            return redirect(f"{reverse('chat')}?conversation={conversation.id}")
+
+    conversation_id = request.GET.get('conversation')
+    if conversation_id:
+        selected_conversation = get_object_or_404(Conversation, id=conversation_id)
+        if request.user not in selected_conversation.participants.all():
+            selected_conversation = None
+        else:
+            thread_messages = list(selected_conversation.messages.select_related('sender').all())
+
+    if not selected_conversation and conversations.exists():
+        selected_conversation = conversations.first()
+        thread_messages = list(selected_conversation.messages.select_related('sender').all())
+
+    if not selected_conversation:
+        selected_conversation = Conversation.objects.create(title='Community Chat')
+        selected_conversation.participants.add(request.user)
+        thread_messages = []
+
+    unread_count = 0
+    if selected_conversation:
+        unread_count = selected_conversation.messages.filter(is_read=False).exclude(sender=request.user).count()
+        if unread_count:
+            selected_conversation.messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True)
+
+    context = {
+        'conversations': conversations,
+        'selected_conversation': selected_conversation,
+        'messages': thread_messages,
+        'unread_count': unread_count,
+    }
+    return render(request, 'chat.html', context)
+
+
 # ==================== ADMIN VIEWS ====================
 
 @login_required
@@ -688,7 +1209,7 @@ def pending_registrations(request):
                     user.save()
 
                     # Create notification for approved user
-                    create_notification(
+                    dispatch_status_notification(
                         recipient=user,
                         title="Account Approved",
                         message="Your account has been approved! You can now login to the system.",

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Analytics - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="fas fa-chart-line me-2 text-primary"></i>Attendance Analytics
+            </h2>
+            <p class="text-muted mb-0">Daily attendance trends and currently flagged absentees.</p>
+        </div>
+        <a href="{% url 'warden_dashboard' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Active students</div>
+                    <div class="display-6 fw-bold mt-2">{{ total_students }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Absentees</div>
+                    <div class="display-6 fw-bold mt-2 text-danger">{{ absentees_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Overall present rate</div>
+                    <div class="display-6 fw-bold mt-2 text-success">{{ overall_rate }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="fw-bold mb-0"><i class="fas fa-bars-progress me-2 text-primary"></i>7-Day Attendance Trend</h5>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-end g-3" style="min-height: 220px;">
+                {% for day in trend %}
+                    <div class="col text-center">
+                        <div class="d-flex justify-content-center align-items-end gap-2" style="height: 180px;">
+                            <div class="bg-primary rounded-top" style="width: 18px; height: {{ day.rate|floatformat:0 }}%; min-height: 8px;" title="Present {{ day.present }}"></div>
+                            <div class="bg-warning rounded-top" style="width: 18px; height: {{ day.absent|floatformat:0 }}%; min-height: 8px;" title="Absent {{ day.absent }}"></div>
+                        </div>
+                        <div class="small text-muted mt-2">{{ day.label }}</div>
+                        <div class="small fw-semibold">{{ day.date|date:'d M' }}</div>
+                    </div>
+                {% empty %}
+                    <div class="col-12 text-center text-muted py-4">No attendance data available.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-user-slash me-2 text-danger"></i>Absentees</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if absentees %}
+                        <div class="list-group list-group-flush">
+                            {% for student in absentees %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                    <div>
+                                        <strong>{{ student.name }}</strong>
+                                        <div class="small text-muted">{{ student.date|date:'d M Y' }}</div>
+                                    </div>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ student.status }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="p-4 text-center text-muted">No absentees for today.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-table-list me-2 text-success"></i>Daily Summary</h5>
+                </div>
+                <div class="card-body">
+                    {% for day in trend|slice:':-1'|slice:'-1:' %}
+                        <div class="mb-3">
+                            <div class="fw-semibold mb-1">{{ day.date|date:'d M' }}</div>
+                            <div class="small text-muted">Present: {{ day.present }} · Absent: {{ day.absent }} · Late: {{ day.late }} · Leave: {{ day.leave }}</div>
+                        </div>
+                    {% empty %}
+                        <div class="text-muted">No summary data.</div>
+                    {% endfor %}
+                    {% if trend %}
+                        {% with latest=trend|last %}
+                            <div class="border-top pt-3 mt-3">
+                                <div class="fw-semibold mb-1">Latest day</div>
+                                <div class="small text-muted">Present: {{ latest.present }} · Absent: {{ latest.absent }} · Late: {{ latest.late }} · Leave: {{ latest.leave }}</div>
+                            </div>
+                        {% endwith %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

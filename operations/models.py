@@ -426,6 +426,34 @@ class Notification(models.Model):
         )
 
 
+class Conversation(models.Model):
+    title = models.CharField(max_length=200, blank=True)
+    participants = models.ManyToManyField(CustomUser, related_name='conversations')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return self.title or f'Conversation {self.id}'
+
+
+class ChatMessage(models.Model):
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='chat_messages')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.sender.username}: {self.content[:40]}'
+
+
 class Event(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()

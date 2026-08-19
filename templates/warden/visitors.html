@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Visitor Management - Hostel Management System{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="fas fa-user-check me-2 text-primary"></i>Visitor Management
+            </h2>
+            <p class="text-muted mb-0">Review visitor requests, approve entry, and track gate-pass usage.</p>
+        </div>
+        <a href="{% url 'warden_dashboard' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if visitors %}
+        <div class="row g-4">
+            {% for visitor in visitors %}
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="fw-bold mb-1">{{ visitor.visitor_name }}</h5>
+                                    <p class="text-muted mb-0">{{ visitor.student.user.get_full_name|default:visitor.student.user.username }}</p>
+                                </div>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ visitor.get_status_display }}</span>
+                            </div>
+
+                            <div class="small text-muted mb-2"><strong>Phone:</strong> {{ visitor.visitor_phone }}</div>
+                            <div class="small text-muted mb-2"><strong>Purpose:</strong> {{ visitor.purpose }}</div>
+                            <div class="small text-muted mb-2"><strong>Visit:</strong> {{ visitor.visit_date|date:'d M Y' }} at {{ visitor.visit_time|time:'H:i' }}</div>
+                            <div class="small text-muted mb-3"><strong>ID:</strong> {{ visitor.visitor_id_type|upper }} • {{ visitor.visitor_id_number }}</div>
+
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a href="{% url 'visitor_gate_pass' visitor.id %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-ticket me-1"></i>Gate Pass
+                                </a>
+                                <form method="post" action="{% url 'check_in_visitor' visitor.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="approved">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="fas fa-check me-1"></i>Approve
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'check_in_visitor' visitor.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="checked_in">
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-door-open me-1"></i>Check In
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-user-check fa-3x text-success mb-3"></i>
+                <h4>No pending visitors</h4>
+                <p class="text-muted mb-0">There are no visitor gate-pass requests to process.</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
